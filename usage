@@ -1,0 +1,238 @@
+#!/bin/bash
+
+pauseAnyKey() {
+	read -n 1 -s -r -p 'Press any key to continue...'
+	echo
+}
+
+checkScriptPermission() {
+	if [[ $EUID -ne 0 ]]; then
+		echo 'You must be a root user!'
+		[[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1 # handle exits from shell or function but don't exit interactive shell
+	fi
+}
+
+rebootRequired() {
+	echo '';
+	read -p 'Reboot? [Y/n] ' -n 1 -r
+	echo '';
+	if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+		reboot
+	fi
+}
+
+changeHostname() {
+	echo '';
+	echo 'Allowed: a-z 0-9 - (Hyphen)';
+	echo 'No capitalization! For example: dev-your-name';
+	read -p 'Change Hostname: ' -r
+	echo '';
+	if [[ $REPLY != '' ]]; then
+		hostnamectl set-hostname ${REPLY}
+		echo "127.0.0.1    ${REPLY}" >> /etc/hosts
+	fi
+}
+
+generateSshKey() {
+	echo '';
+	echo 'Generate SSH key';
+	read -p 'Your e-mail address: ' -r
+	echo '';
+	if [[ $REPLY != '' ]]; then
+		ssh-keygen -t rsa -b 4096 -C "${REPLY}" -f /home/user/.ssh/id_rsa
+		chown -R user:user /home/user/.ssh
+	fi
+}
+
+changeDevelopmentContext() {
+	echo '';
+	read -p 'Your Development Context (Username): ' -r
+	echo '';
+	if [[ $REPLY != '' ]]; then
+		echo "TYPO3_CONTEXT=Development/${REPLY}" >> /etc/environment
+		echo "FLOW_CONTEXT=Development/${REPLY}" >> /etc/environment
+		echo "WWW_CONTEXT=Development/${REPLY}" >> /etc/environment
+
+		echo "Your full development context is: Development/${REPLY}"
+		pauseAnyKey
+	fi
+}
+
+convertSshKeyToPutty() {
+	puttygen /home/user/.ssh/id_rsa -o /home/user/projects/id_rsa.ppk
+	chown user:user /home/user/projects/id_rsa.ppk
+	echo 'Putty SSH key stored here: /home/user/projects/id_rsa.ppk';
+	pauseAnyKey
+}
+
+configureGit() {
+	echo '';
+	echo 'Configure Git';
+
+	read -p 'Your full name (firstname lastname): ' -r
+	echo '';
+	if [[ $REPLY != '' ]]; then
+		runuser -l user -c "git config --global user.name \"${REPLY}\""
+	fi
+
+	read -p 'Your e-mail address: ' -r
+	echo '';
+	if [[ $REPLY != '' ]]; then
+		runuser -l user -c "git config --global user.email \"${REPLY}\""
+	fi
+}
+
+createSecondHarddisk() {
+	sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << EOF | fdisk /dev/sdb ${TGTDEV}
+  g # create a new empty GPT partition table
+  n # new partition
+  1 # partition number 1
+    # first sector (default)
+    # last sector (default)
+  p # print the partition table
+  w # write table to disk and exit
+EOF
+
+	mkfs.ext4 /dev/sdb1
+	mkdir /mnt/data
+
+	UUID=`blkid -s UUID -o value /dev/sdb1`
+	if [[ $(lsb_release -rs) == '18.04' ]]; then
+		echoCommand="UUID=${UUID} /mnt/data ext4 defaults 0 0"
+	fi;
+	if [[ $(lsb_release -rs) == '16.04' ]]; then
+		echoCommand="UUID=${UUID} /mnt/data ext4 errors=remount-ro 0 1"
+	fi;
+	echo ${echoCommand} >> /etc/fstab
+
+	mount /mnt/data
+	chmod 777 /mnt/data
+}
+
+moveHarddisk2Projects() {
+	mkdir -p /mnt/data/home/user
+	chown user:user /mnt/data/home/user
+	chmod 775 /mnt/data/home/user
+	chmod g+s /mnt/data/home/user
+
+	mv /home/user/projects /mnt/data/home/user/
+	ln -s /mnt/data/home/user/projects /home/user/projects
+}
+
+moveHarddisk2Docker() {
+	systemctl stop docker
+	mkdir -p /mnt/data/var/lib
+	mv /var/lib/docker /mnt/data/var/lib/
+	ln -s /mnt/data/var/lib/docker /var/lib/docker
+	systemctl start docker
+}
+
+messageOfTheDayUser() {
+	echo '';
+	read -p 'Message of the day for user? [Y/n] ' -n 1 -r
+	echo '';
+	if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+		sed -i 's/^#terminalMotd/terminalMotd/' /home/user/.bashrc
+		sed -i 's/^#terminalMotd/terminalMotd/' /home/user/.zshrc
+	else
+		sed -i 's/^terminalMotd/#terminalMotd/' /home/user/.bashrc
+		sed -i 's/^terminalMotd/#terminalMotd/' /home/user/.zshrc
+	fi
+}
+
+messageOfTheDayRoot() {
+	echo '';
+	read -p 'Message of the day for root? [y/N] ' -n 1 -r
+	echo '';
+	if [[ $REPLY =~ ^[Yy]$ ]]; then
+		sed -i 's/^#terminalMotd/terminalMotd/' /root/.bashrc
+		sed -i 's/^#terminalMotd/terminalMotd/' /root/.zshrc
+	else
+		sed -i 's/^terminalMotd/#terminalMotd/' /root/.bashrc
+		sed -i 's/^terminalMotd/#terminalMotd/' /root/.zshrc
+	fi
+}
+
+changeShellRoot() {
+	currentShellPath=`getent passwd $(id -un root) | awk -F : '{print $NF}'`
+	bashPath=`which bash`
+	echo "Enter password user 'root'."
+	if [ "${currentShellPath}" == "${bashPath}" ]; then
+		runuser -l user -c "chsh -s $(which zsh)"
+		chsh -s $(which zsh)
+		echo 'Shell is now zsh.'
+	else
+		chsh -s $(which bash)
+		echo 'Shell is now bash.'
+	fi
+}
+
+changeShellUser() {
+	currentShellPath=`getent passwd $(id -un user) | awk -F : '{print $NF}'`
+	bashPath=`which bash`
+	echo "Enter password user 'user'."
+	if [ "${currentShellPath}" == "${bashPath}" ]; then
+		runuser -l user -c "chsh -s $(which zsh)"
+		echo 'Shell is now zsh.'
+	else
+		runuser -l user -c "chsh -s $(which bash)"
+		echo 'Shell is now bash.'
+	fi
+}
+
+menu() {
+	echo ''
+	echo '1) Configure system'
+	echo '2) Create second harddisk'
+	echo '3) Message of the day'
+	echo '4) Change keyboard layout'
+	echo '5) Convert SSH key to Putty key'
+	echo '6) Change login shell root'
+	echo '7) Change login shell user'
+	echo '0) Exit'
+	read -p 'Enter your choice: ' choice
+
+	case "$choice" in
+		'1')
+			changeHostname
+			generateSshKey
+			convertSshKeyToPutty
+			configureGit
+			changeDevelopmentContext
+			rebootRequired
+		;;
+		'2')
+			createSecondHarddisk
+			moveHarddisk2Projects
+			moveHarddisk2Docker
+		;;
+		'3')
+			messageOfTheDayUser
+			messageOfTheDayRoot
+		;;
+		'4')
+			dpkg-reconfigure keyboard-configuration
+		;;
+		'5')
+			convertSshKeyToPutty
+		;;
+		'6')
+			changeShellRoot
+		;;
+		'7')
+			changeShellUser
+		;;
+
+		'0')
+			exit 0
+		;;
+		*)
+			echo 'Wrong choice... Please try again.'
+			menu
+		;;
+	esac
+}
+
+# Run script
+checkScriptPermission
+menu

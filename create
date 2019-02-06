@@ -1,0 +1,267 @@
+#!/bin/bash
+set -e
+
+SCRIPT_PATH=""
+
+pauseAnyKey() {
+	read -n 1 -s -r -p 'Press any key to continue...'
+	echo
+}
+
+setScriptPath() {
+	SCRIPT_PATH="`dirname \"$0\"`"
+	SCRIPT_PATH="`( cd \"$SCRIPT_PATH\" && pwd )`"
+	if [ -z "$SCRIPT_PATH" ]; then
+		[[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1 # handle exits from shell or function but don't exit interactive shell
+	fi
+}
+
+checkScriptPermission() {
+	if [[ $EUID -ne 0 ]]; then
+		echo 'You must be a root user!'
+		[[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1 # handle exits from shell or function but don't exit interactive shell
+	fi
+}
+
+setUserPermissions() {
+	usermod -aG sudo user
+	echo "%sudo ALL=(ALL) NOPASSWD: ALL" >> /etc/sudoers
+}
+
+disableBlankConsole() {
+	if [[ "${TERM}" != 'xterm-256color' ]]; then
+		setterm -blank 0 -powersave off
+	fi;
+}
+
+bugfixNetfilter() {
+	if [[ $(lsb_release -rs) == '18.04' ]]; then
+		# Default: 65536
+		sysctl -w net.netfilter.nf_conntrack_max=524288
+	fi;
+}
+
+checkDpkgLock() {
+	i=0
+	tput sc
+	while fuser /var/lib/dpkg/lock >/dev/null 2>&1 ; do
+	    case $(($i % 4)) in
+	        0 ) j="-" ;;
+	        1 ) j="\\" ;;
+	        2 ) j="|" ;;
+	        3 ) j="/" ;;
+	    esac
+	    tput rc
+	    echo -en "\r[$j] Waiting for other software managers to finish..."
+	    sleep 0.5
+	    ((i=i+1))
+	done
+}
+
+installSystem() {
+	checkDpkgLock
+	add-apt-repository -y multiverse
+	apt update
+
+	# If you use german keyboard layout, install the language pack
+	apt -y install language-pack-de
+
+	apt -y dist-upgrade
+
+	# Install minimal requirements.
+	apt -y install openssh-server vim git
+	apt -y install curl crudini htop putty-tools whois net-tools
+
+	# Configure prefered editor
+	update-alternatives --set editor /usr/bin/vim.basic
+
+	# Add user project folder
+	mkdir -p /home/user/projects
+	chown user:user /home/user/projects
+}
+
+copyFiles() {
+	# Copy files
+	rsync -a ${SCRIPT_PATH}/home/user/ /home/user/
+	chown -R user:user /home/user
+}
+
+configureGrub() {
+	# Configure Grub
+	if [[ $(lsb_release -rs) == '18.04' ]]; then
+		sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=".*"/GRUB_CMDLINE_LINUX_DEFAULT="maybe-ubiquity consoleblank=0"/' /etc/default/grub
+	fi;
+	if [[ $(lsb_release -rs) == '16.04' ]]; then
+		sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=".*"/GRUB_CMDLINE_LINUX_DEFAULT="consoleblank=0"/' /etc/default/grub
+	fi;
+	update-grub
+}
+
+appendBashRcFile() {
+	array=(
+		'source ~/.shell-methods'
+		'#sshAgentRestart'
+		'#sshAgentAddKey 24h ~/.ssh/id_rsa'
+		'addAlias'
+		'stylePS1'
+		'#terminalMotd'
+	)
+	for id in ${!array[*]}; do
+		echo "${array[$id]}" >> ${2}
+	done
+}
+
+configureBash() {
+	# Bash (User & Root)
+	sudo cp ${SCRIPT_PATH}/home/user/.shell-methods /root/
+	sudo chown root:root /root/.shell-methods
+	appendBashRcFile 'user' /home/user/.bashrc
+	appendBashRcFile 'root' /root/.bashrc
+}
+
+installZsh() {
+	# Zsh (User & Root)
+	sudo apt -y install zsh
+	sudo rsync -a ${SCRIPT_PATH}/home/user/.zshrc /root/
+	sudo rsync -a ${SCRIPT_PATH}/home/user/.oh-my-zsh/ /root/.oh-my-zsh/
+	git clone https://github.com/robbyrussell/oh-my-zsh.git /tmp/.oh-my-zsh
+
+	rsync -a /tmp/.oh-my-zsh/ /home/user/.oh-my-zsh/
+	sudo rsync -a /tmp/.oh-my-zsh/ /root/.oh-my-zsh/
+	sudo chown -R root:root /root/.oh-my-zsh
+	sudo chown root:root /root/.zshrc
+}
+
+installMotd() {
+	## Message of the day - Disable to much information
+	chmod -x /etc/update-motd.d/10-help-text
+
+	# Ubuntu 16.04:
+	if [[ $(lsb_release -rs) == '16.04' ]]; then
+		chmod -x /etc/update-motd.d/91-release-upgrade
+	fi;
+
+	## Message of the day - Keep me from working
+	apt -y install boxes lolcat fortune-mod fortunes fortunes-min fortunes-de fortunes-ubuntu-server fortunes-bofh-excuses
+	chmod -x /etc/update-motd.d/60-ubuntu-server-tip
+}
+
+installDocker() {
+	# https://docs.docker.com/install/linux/docker-ce/ubuntu/
+
+	apt -y install apt-transport-https ca-certificates curl software-properties-common
+	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
+	add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+	apt update
+	apt -y install docker-ce
+	usermod -aG docker user
+}
+
+installDockerCompose() {
+	# https://docs.docker.com/compose/install/#install-compose
+	# https://github.com/docker/compose/releases
+
+	curl -L https://github.com/docker/compose/releases/download/1.20.1/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+	chmod +x /usr/local/bin/docker-compose
+}
+
+runDockerTest() {
+	echo '';
+	read -p 'Test Docker? [Y/n] ' -n 1 -r
+	echo
+	if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+		# Run hello world test
+		docker run hello-world
+
+		# Delete all container
+		docker rm $(docker ps -a -q)
+
+		# Delete all images
+		docker rmi $(docker images -q)
+
+		pauseAnyKey
+	fi
+}
+
+installSamba() {
+	apt -y install samba
+	rsync -a ${SCRIPT_PATH}/etc/samba/smb.conf /etc/samba/
+	echo -e "user\nuser" | smbpasswd -s -a user
+	systemctl restart smbd
+	# configureSamba
+}
+
+configureSamba() {
+	# Not working, because samba configuration file ist defect
+	crudini --set /etc/samba/smb.conf 'global' 'security' 'user'
+	crudini --set /etc/samba/smb.conf 'global' 'allow insecure wide links' 'yes'
+	crudini --set /etc/samba/smb.conf 'global' 'workgroup' 'Company'
+
+	crudini --set /etc/samba/smb.conf 'projects' 'comment' 'web path'
+	crudini --set /etc/samba/smb.conf 'projects' 'path' '/home/user/projects'
+	crudini --set /etc/samba/smb.conf 'projects' 'public' 'no'
+	crudini --set /etc/samba/smb.conf 'projects' 'writeable' 'yes'
+	crudini --set /etc/samba/smb.conf 'projects' 'guest ok' 'no'
+	crudini --set /etc/samba/smb.conf 'projects' 'browseable' 'yes'
+	crudini --set /etc/samba/smb.conf 'projects' 'valid users' 'user'
+	crudini --set /etc/samba/smb.conf 'projects' 'create mask' '0664'
+	crudini --set /etc/samba/smb.conf 'projects' 'directory mask' '0750'
+	crudini --set /etc/samba/smb.conf 'projects' 'follow symlinks' 'yes'
+	crudini --set /etc/samba/smb.conf 'projects' 'wide links' 'yes'
+	crudini --set /etc/samba/smb.conf 'projects' 'force user' 'user'
+	crudini --set /etc/samba/smb.conf 'projects' 'force group' 'user'
+}
+
+runApportCli() {
+	echo '';
+	echo 'Send it or cancel with button "c":';
+	apport-cli
+}
+
+runCleanup() {
+	set +e
+	rm /home/user/.bash_history
+	rm /home/user/.zsh_history
+	rm /root/.bash_history
+	rm /root/.zsh_history
+	set -e
+}
+
+rebootRequired() {
+	echo '';
+	read -p 'Reboot? [Y/n] ' -n 1 -r
+	echo
+	if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+		sudo reboot
+	fi
+}
+
+# Run script
+setScriptPath
+checkScriptPermission
+
+echo '';
+read -p 'Run installation? [y/N] ' -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+	setUserPermissions
+	disableBlankConsole
+
+	installSystem
+	copyFiles
+	configureGrub
+	configureBash
+	installZsh
+	installMotd
+
+	installDocker
+	bugfixNetfilter
+	installDockerCompose
+
+	installSamba
+	runDockerTest
+
+	runApportCli
+	runCleanup
+	rebootRequired
+fi
