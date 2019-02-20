@@ -106,16 +106,17 @@ Partition and format the second hard disk in terminal or with gparted.
 
 Format the second hard disk by using the usage script "Create second harddisk".
 
+* Step 3: Configure Docker-Global
 
 ### Optional configuration
 
-* Step 3: Message of the day
+* Step 4: Message of the day
 
-* Step 4: Change keyboard layout
+* Step 5: Change keyboard layout
 
-* Step 5: Convert SSH key to Putty key
+* Step 6: Convert SSH key to Putty key
 
-* Step 6/7: Change login shell root/user
+* Step 7/8: Change login shell root/user
 
 Change permanently from "bash" to "zsh".
 
