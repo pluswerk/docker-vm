@@ -1,8 +1,18 @@
 #!/bin/bash
 
+SCRIPT_PATH=""
+
 pauseAnyKey() {
 	read -n 1 -s -r -p 'Press any key to continue...'
 	echo
+}
+
+setScriptPath() {
+	SCRIPT_PATH="`dirname \"$0\"`"
+	SCRIPT_PATH="`( cd \"$SCRIPT_PATH\" && pwd )`"
+	if [ -z "$SCRIPT_PATH" ]; then
+		[[ "$0" = "$BASH_SOURCE" ]] && exit 1 || return 1 # handle exits from shell or function but don't exit interactive shell
+	fi
 }
 
 checkScriptPermission() {
@@ -127,6 +137,11 @@ moveHarddisk2Docker() {
 	systemctl start docker
 }
 
+configureDockerGlobal() {
+	git clone https://github.com/pluswerk/docker-global.git /home/user/projects/docker-global
+	cd /home/user/projects/docker-global && docker-compose up -d && cd ${SCRIPT}
+}
+
 messageOfTheDayUser() {
 	echo '';
 	read -p 'Message of the day for user? [Y/n] ' -n 1 -r
@@ -184,11 +199,12 @@ menu() {
 	echo ''
 	echo '1) Configure system'
 	echo '2) Create second harddisk'
-	echo '3) Message of the day'
-	echo '4) Change keyboard layout'
-	echo '5) Convert SSH key to Putty key'
-	echo '6) Change login shell root'
-	echo '7) Change login shell user'
+	echo '3) Configure Docker-Global'
+	echo '4) Message of the day'
+	echo '5) Change keyboard layout'
+	echo '6) Convert SSH key to Putty key'
+	echo '7) Change login shell root'
+	echo '8) Change login shell user'
 	echo '0) Exit'
 	read -p 'Enter your choice: ' choice
 
@@ -207,19 +223,22 @@ menu() {
 			moveHarddisk2Docker
 		;;
 		'3')
+			configureDockerGlobal
+		;;
+		'4')
 			messageOfTheDayUser
 			messageOfTheDayRoot
 		;;
-		'4')
+		'5')
 			dpkg-reconfigure keyboard-configuration
 		;;
-		'5')
+		'6')
 			convertSshKeyToPutty
 		;;
-		'6')
+		'7')
 			changeShellRoot
 		;;
-		'7')
+		'8')
 			changeShellUser
 		;;
 
@@ -234,5 +253,6 @@ menu() {
 }
 
 # Run script
+setScriptPath
 checkScriptPermission
 menu
