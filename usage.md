@@ -106,7 +106,6 @@ Partition and format the second hard disk in terminal or with gparted.
 
 Format the second hard disk by using the usage script "Create second harddisk".
 
-
 ### Optional configuration
 
 * Step 3: Message of the day
@@ -288,6 +287,18 @@ Run in a command window:
 ```Shell
 net use Z: \\192.168.56.101\projects /PERSISTENT:YES
 ```
+
+###### Bugfix Windows insecure guest access
+
+If you do not get access via Samba you have to configure the following Group Policy settings:
+
+```text
+Windows Group Policy:
+Computer configuration\administrative templates\network\Lanman Workstation
+"Enable insecure guest logons" = true
+```
+
+[Guest access in SMB2 disabled by default](https://support.microsoft.com/en-us/help/4046019/guest-access-in-smb2-disabled-by-default-in-windows-10-and-windows-ser)
 
 ##### Samba/Windows share - Linux configuration
 
