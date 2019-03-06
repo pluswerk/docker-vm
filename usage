@@ -104,7 +104,7 @@ configureDockerGlobal() {
 menu() {
 	echo ''
 	echo '1) Change hostname'
-	echo '3) Generate SSH key'
+	echo '2) Generate SSH key'
 	echo '3) Convert SSH key to Putty key'
 	echo '4) Configure Git'
 	echo '5) Change development context'

@@ -8,20 +8,18 @@ VirtalBox > New > (Expert Mode)
 * Type: Linux
 * Version: Ubuntu (64 bit)
 * Memory size: 4096 MB
-* Hard disk: No, do not add a virtual hard disk
+* Hard disk: Create harddisk
+  - SATA Port 0, Hard disk, File location: System, 1000 GB, VDMK, Dynamically allocated
 
 VirtualBox > Settings
 
 * System
   - Motherboard > Boot Order: Optical, Hard Disk
   - Processor > CPU: 4 (Maximum of green)
-* Storage (Expert mode)
-  - SATA Port 0, Hard disk, File location: System, 100 GB, VDMK, Dynamically allocated
-  - SATA Port 2, Compact Disc, Insert operating system
+  - Processor > Enable: PAE/NX
 * Audio > Enable Audio: false
-* Network (NAT or Bridged Adapter)
+* Network
   - Adapter 1, NAT
-  - Adapter 2, Bridged Adapter, eth1 (Your network device)
 
 ### Download Debian
 
@@ -35,7 +33,7 @@ https://cdimage.debian.org/debian-cd/current/amd64/iso-dvd/
 * Language: English (or what you prefer)
 * Location: United States (or what you prefer)
 * Keyboard: American English (or what you prefer)
-* Hostname: dev-vm (or dev-username)
+* Hostname: dev-vm
 * Domain name: (empty)
 
 * Root Passwort: root
@@ -73,7 +71,8 @@ nano /etc/apt/sources.list
 Install Git, clone repository, go into the directory and run installation.
 
 ```Shell
-sudo apt -y install git
+# apt update
+apt -y install git
 git clone https://github.com/pluswerk/docker-vm.git
 cd docker-vm
 ./create
