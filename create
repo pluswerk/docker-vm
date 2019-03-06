@@ -34,13 +34,6 @@ disableBlankConsole() {
 	fi;
 }
 
-bugfixNetfilter() {
-	if [[ $(lsb_release -rs) == '18.04' ]]; then
-		# Default: 65536
-		sysctl -w net.netfilter.nf_conntrack_max=524288
-	fi;
-}
-
 checkDpkgLock() {
 	i=0
 	tput sc
@@ -58,18 +51,27 @@ checkDpkgLock() {
 	done
 }
 
+overrideAptSources() {
+	echo "deb http://${1}/debian/ stretch main contrib" > /etc/apt/sources.list
+	echo "deb-src http://${1}/debian/ stretch main contrib" >> /etc/apt/sources.list
+
+	echo "" >> /etc/apt/sources.list
+	echo "deb http://security.debian.org/debian-security stretch/updates main contrib" >> /etc/apt/sources.list
+	echo "deb-src http://security.debian.org/debian-security stretch/updates main contrib" >> /etc/apt/sources.list
+
+	echo "" >> /etc/apt/sources.list
+	echo "stretch-updates, previously known as 'volatile'" >> /etc/apt/sources.list
+	echo "deb http://${1}/debian/ stretch-updates main contrib" >> /etc/apt/sources.list
+	echo "deb-src http://${1}/debian/ stretch-updates main contrib" >> /etc/apt/sources.list
+}
+
 installSystem() {
 	checkDpkgLock
-	add-apt-repository -y multiverse
 	apt update
-
-	# If you use german keyboard layout, install the language pack
-	apt -y install language-pack-de
-
 	apt -y dist-upgrade
 
-	# Install minimal requirements.
-	apt -y install openssh-server vim git
+	# Install minimal requirements
+	apt -y install openssh-server vim git sudo
 	apt -y install curl crudini htop putty-tools whois net-tools
 
 	# Configure prefered editor
@@ -87,24 +89,17 @@ copyFiles() {
 }
 
 configureGrub() {
-	# Configure Grub
-	if [[ $(lsb_release -rs) == '18.04' ]]; then
-		sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=".*"/GRUB_CMDLINE_LINUX_DEFAULT="maybe-ubiquity consoleblank=0"/' /etc/default/grub
-	fi;
-	if [[ $(lsb_release -rs) == '16.04' ]]; then
-		sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=".*"/GRUB_CMDLINE_LINUX_DEFAULT="consoleblank=0"/' /etc/default/grub
-	fi;
+	sed -i 's/^GRUB_CMDLINE_LINUX_DEFAULT=".*"/GRUB_CMDLINE_LINUX_DEFAULT="consoleblank=0"/' /etc/default/grub
 	update-grub
 }
 
 appendBashRcFile() {
 	array=(
-		'source ~/.shell-methods'
+		'source ~/.shell-methods.sh'
 		'#sshAgentRestart'
 		'#sshAgentAddKey 24h ~/.ssh/id_rsa'
 		'addAlias'
 		'stylePS1'
-		'#terminalMotd'
 	)
 	for id in ${!array[*]}; do
 		echo "${array[$id]}" >> ${2}
@@ -113,45 +108,18 @@ appendBashRcFile() {
 
 configureBash() {
 	# Bash (User & Root)
-	sudo cp ${SCRIPT_PATH}/home/user/.shell-methods /root/
+	sudo cp ${SCRIPT_PATH}/home/user/.shell-methods.sh /root/
 	sudo chown root:root /root/.shell-methods
 	appendBashRcFile 'user' /home/user/.bashrc
 	appendBashRcFile 'root' /root/.bashrc
 }
 
-installZsh() {
-	# Zsh (User & Root)
-	sudo apt -y install zsh
-	sudo rsync -a ${SCRIPT_PATH}/home/user/.zshrc /root/
-	sudo rsync -a ${SCRIPT_PATH}/home/user/.oh-my-zsh/ /root/.oh-my-zsh/
-	git clone https://github.com/robbyrussell/oh-my-zsh.git /tmp/.oh-my-zsh
-
-	rsync -a /tmp/.oh-my-zsh/ /home/user/.oh-my-zsh/
-	sudo rsync -a /tmp/.oh-my-zsh/ /root/.oh-my-zsh/
-	sudo chown -R root:root /root/.oh-my-zsh
-	sudo chown root:root /root/.zshrc
-}
-
-installMotd() {
-	## Message of the day - Disable to much information
-	chmod -x /etc/update-motd.d/10-help-text
-
-	# Ubuntu 16.04:
-	if [[ $(lsb_release -rs) == '16.04' ]]; then
-		chmod -x /etc/update-motd.d/91-release-upgrade
-	fi;
-
-	## Message of the day - Keep me from working
-	apt -y install boxes lolcat fortune-mod fortunes fortunes-min fortunes-de fortunes-ubuntu-server fortunes-bofh-excuses
-	chmod -x /etc/update-motd.d/60-ubuntu-server-tip
-}
-
 installDocker() {
-	# https://docs.docker.com/install/linux/docker-ce/ubuntu/
+	# https://docs.docker.com/install/linux/docker-ce/debian/
 
 	apt -y install apt-transport-https ca-certificates curl software-properties-common
-	curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo apt-key add -
-	add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable"
+	curl -fsSL https://download.docker.com/linux/debian/gpg | sudo apt-key add -
+	add-apt-repository -y "deb [arch=amd64] https://download.docker.com/linux/debian $(lsb_release -cs) stable"
 	apt update
 	apt -y install docker-ce
 	usermod -aG docker user
@@ -161,7 +129,7 @@ installDockerCompose() {
 	# https://docs.docker.com/compose/install/#install-compose
 	# https://github.com/docker/compose/releases
 
-	curl -L https://github.com/docker/compose/releases/download/1.20.1/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
+	curl -L https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m) -o /usr/local/bin/docker-compose
 	chmod +x /usr/local/bin/docker-compose
 }
 
@@ -197,7 +165,7 @@ configureSamba() {
 	crudini --set /etc/samba/smb.conf 'global' 'allow insecure wide links' 'yes'
 	crudini --set /etc/samba/smb.conf 'global' 'workgroup' 'Company'
 
-	crudini --set /etc/samba/smb.conf 'projects' 'comment' 'web path'
+	crudini --set /etc/samba/smb.conf 'projects' 'comment' 'projects path'
 	crudini --set /etc/samba/smb.conf 'projects' 'path' '/home/user/projects'
 	crudini --set /etc/samba/smb.conf 'projects' 'public' 'no'
 	crudini --set /etc/samba/smb.conf 'projects' 'writeable' 'yes'
@@ -210,12 +178,20 @@ configureSamba() {
 	crudini --set /etc/samba/smb.conf 'projects' 'wide links' 'yes'
 	crudini --set /etc/samba/smb.conf 'projects' 'force user' 'user'
 	crudini --set /etc/samba/smb.conf 'projects' 'force group' 'user'
-}
 
-runApportCli() {
-	echo '';
-	echo 'Send it or cancel with button "c":';
-	apport-cli
+	crudini --set /etc/samba/smb.conf 'user' 'comment' 'user path'
+	crudini --set /etc/samba/smb.conf 'user' 'path' '/home/user'
+	crudini --set /etc/samba/smb.conf 'user' 'public' 'no'
+	crudini --set /etc/samba/smb.conf 'user' 'writeable' 'yes'
+	crudini --set /etc/samba/smb.conf 'user' 'guest ok' 'no'
+	crudini --set /etc/samba/smb.conf 'user' 'browseable' 'yes'
+	crudini --set /etc/samba/smb.conf 'user' 'valid users' 'user'
+	crudini --set /etc/samba/smb.conf 'user' 'create mask' '0664'
+	crudini --set /etc/samba/smb.conf 'user' 'directory mask' '0750'
+	crudini --set /etc/samba/smb.conf 'user' 'follow symlinks' 'yes'
+	crudini --set /etc/samba/smb.conf 'user' 'wide links' 'yes'
+	crudini --set /etc/samba/smb.conf 'user' 'force user' 'user'
+	crudini --set /etc/samba/smb.conf 'user' 'force group' 'user'
 }
 
 runCleanup() {
@@ -247,21 +223,19 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 	setUserPermissions
 	disableBlankConsole
 
+	#overrideAptSources "deb.debian.org"
+	overrideAptSources "ftp.de.debian.org"
 	installSystem
 	copyFiles
 	configureGrub
 	configureBash
-	installZsh
-	installMotd
 
 	installDocker
-	bugfixNetfilter
 	installDockerCompose
 
 	installSamba
 	runDockerTest
 
-	runApportCli
 	runCleanup
 	rebootRequired
 fi

@@ -142,69 +142,13 @@ configureDockerGlobal() {
 	cd /home/user/projects/docker-global && docker-compose up -d && cd ${SCRIPT}
 }
 
-messageOfTheDayUser() {
-	echo '';
-	read -p 'Message of the day for user? [Y/n] ' -n 1 -r
-	echo '';
-	if [[ ! $REPLY =~ ^[Nn]$ ]]; then
-		sed -i 's/^#terminalMotd/terminalMotd/' /home/user/.bashrc
-		sed -i 's/^#terminalMotd/terminalMotd/' /home/user/.zshrc
-	else
-		sed -i 's/^terminalMotd/#terminalMotd/' /home/user/.bashrc
-		sed -i 's/^terminalMotd/#terminalMotd/' /home/user/.zshrc
-	fi
-}
-
-messageOfTheDayRoot() {
-	echo '';
-	read -p 'Message of the day for root? [y/N] ' -n 1 -r
-	echo '';
-	if [[ $REPLY =~ ^[Yy]$ ]]; then
-		sed -i 's/^#terminalMotd/terminalMotd/' /root/.bashrc
-		sed -i 's/^#terminalMotd/terminalMotd/' /root/.zshrc
-	else
-		sed -i 's/^terminalMotd/#terminalMotd/' /root/.bashrc
-		sed -i 's/^terminalMotd/#terminalMotd/' /root/.zshrc
-	fi
-}
-
-changeShellRoot() {
-	currentShellPath=`getent passwd $(id -un root) | awk -F : '{print $NF}'`
-	bashPath=`which bash`
-	echo "Enter password user 'root'."
-	if [ "${currentShellPath}" == "${bashPath}" ]; then
-		runuser -l user -c "chsh -s $(which zsh)"
-		chsh -s $(which zsh)
-		echo 'Shell is now zsh.'
-	else
-		chsh -s $(which bash)
-		echo 'Shell is now bash.'
-	fi
-}
-
-changeShellUser() {
-	currentShellPath=`getent passwd $(id -un user) | awk -F : '{print $NF}'`
-	bashPath=`which bash`
-	echo "Enter password user 'user'."
-	if [ "${currentShellPath}" == "${bashPath}" ]; then
-		runuser -l user -c "chsh -s $(which zsh)"
-		echo 'Shell is now zsh.'
-	else
-		runuser -l user -c "chsh -s $(which bash)"
-		echo 'Shell is now bash.'
-	fi
-}
-
 menu() {
 	echo ''
 	echo '1) Configure system'
 	echo '2) Create second harddisk'
 	echo '3) Configure Docker-Global'
-	echo '4) Message of the day'
 	echo '5) Change keyboard layout'
 	echo '6) Convert SSH key to Putty key'
-	echo '7) Change login shell root'
-	echo '8) Change login shell user'
 	echo '0) Exit'
 	read -p 'Enter your choice: ' choice
 
@@ -225,21 +169,11 @@ menu() {
 		'3')
 			configureDockerGlobal
 		;;
-		'4')
-			messageOfTheDayUser
-			messageOfTheDayRoot
-		;;
 		'5')
 			dpkg-reconfigure keyboard-configuration
 		;;
 		'6')
 			convertSshKeyToPutty
-		;;
-		'7')
-			changeShellRoot
-		;;
-		'8')
-			changeShellUser
 		;;
 
 		'0')
