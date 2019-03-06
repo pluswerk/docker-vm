@@ -60,7 +60,7 @@ overrideAptSources() {
 	echo "deb-src http://security.debian.org/debian-security stretch/updates main contrib" >> /etc/apt/sources.list
 
 	echo "" >> /etc/apt/sources.list
-	echo "stretch-updates, previously known as 'volatile'" >> /etc/apt/sources.list
+	echo "# stretch-updates, previously known as 'volatile'" >> /etc/apt/sources.list
 	echo "deb http://${1}/debian/ stretch-updates main contrib" >> /etc/apt/sources.list
 	echo "deb-src http://${1}/debian/ stretch-updates main contrib" >> /etc/apt/sources.list
 }
@@ -109,7 +109,7 @@ appendBashRcFile() {
 configureBash() {
 	# Bash (User & Root)
 	sudo cp ${SCRIPT_PATH}/home/user/.shell-methods.sh /root/
-	sudo chown root:root /root/.shell-methods
+	sudo chown root:root /root/.shell-methods.sh
 	appendBashRcFile 'user' /home/user/.bashrc
 	appendBashRcFile 'root' /root/.bashrc
 }
@@ -194,15 +194,6 @@ configureSamba() {
 	crudini --set /etc/samba/smb.conf 'user' 'force group' 'user'
 }
 
-runCleanup() {
-	set +e
-	rm /home/user/.bash_history
-	rm /home/user/.zsh_history
-	rm /root/.bash_history
-	rm /root/.zsh_history
-	set -e
-}
-
 rebootRequired() {
 	echo '';
 	read -p 'Reboot? [Y/n] ' -n 1 -r
@@ -220,12 +211,13 @@ echo '';
 read -p 'Run installation? [y/N] ' -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-	setUserPermissions
 	disableBlankConsole
 
 	#overrideAptSources "deb.debian.org"
 	overrideAptSources "ftp.de.debian.org"
 	installSystem
+	setUserPermissions
+
 	copyFiles
 	configureGrub
 	configureBash
@@ -236,6 +228,5 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
 	installSamba
 	runDockerTest
 
-	runCleanup
 	rebootRequired
 fi
