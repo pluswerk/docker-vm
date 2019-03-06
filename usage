@@ -72,7 +72,6 @@ convertSshKeyToPutty() {
 	puttygen /home/user/.ssh/id_rsa -o /home/user/.ssh/id_rsa.ppk
 	chown user:user /home/user/.ssh/id_rsa.ppk
 	echo 'Putty SSH key stored here: /home/user/.ssh/id_rsa.ppk';
-	pauseAnyKey
 }
 
 configureGit() {
@@ -118,24 +117,31 @@ menu() {
 	case "$choice" in
 		'1')
 			changeHostname
+			menu
 		;;
 		'2')
 			generateSshKey
+			menu
 		;;
 		'3')
 			convertSshKeyToPutty
+			menu
 		;;
 		'4')
 			configureGit
+			menu
 		;;
 		'5')
 			changeDevelopmentContext
+			menu
 		;;
 		'6')
 			configureDockerGlobal
+			menu
 		;;
 		'7')
 			dpkg-reconfigure keyboard-configuration
+			menu
 		;;
 		'8')
 			rebootRequired
