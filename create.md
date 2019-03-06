@@ -132,7 +132,7 @@ Install Git, clone repository and go into the directory.
 
 ```Shell
 sudo apt -y install git
-git clone https://github.com/Cyb10101/dev-vm-linux.git /home/user/docker-vm
+git clone https://github.com/pluswerk/docker-vm.git /home/user/docker-vm
 ```
 
 ### Install
