@@ -93,7 +93,12 @@ configureGit() {
 }
 
 configureDockerGlobal() {
+	mkdir -p /home/user/.composer/cache
+	chown -R user:user /home/user/.composer
+
 	git clone https://github.com/pluswerk/docker-global.git /home/user/projects/docker-global
+	chown -R user:user /home/user/projects/docker-global
+
 	cd /home/user/projects/docker-global && docker-compose up -d && cd ${SCRIPT}
 }
 
