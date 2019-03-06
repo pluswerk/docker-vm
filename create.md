@@ -1,4 +1,4 @@
-## VirtualBox - Create a new virtual machine
+## @todo VirtualBox - Create a new virtual machine
 
 * Install VirtualBox: https://virtualbox.org/
 
@@ -23,77 +23,77 @@ VirtualBox > Settings
   - Adapter 1, NAT
   - Adapter 2, Bridged Adapter, eth1 (Your network device)
 
-### Download Ubuntu
+### Download Debian
 
-Ubuntu Server 18.04 or 16.04 (64 bit).
+Download: Debian 9.8.0 - DVD 1
 
-https://ubuntu.com/
+https://cdimage.debian.org/debian-cd/current/amd64/iso-dvd/
 
-### Installation for Ubuntu Server 16.04
+### Install Debian
 
+* Graphical install or (Console) install (Console install is faster)
 * Language: English (or what you prefer)
-* Install Ubuntu Server
+* Location: United States (or what you prefer)
+* Keyboard: American English (or what you prefer)
+* Hostname: dev-vm (or dev-username)
+* Domain name: (empty)
 
-* Language: English
-* Country: United States
-* Optional: Detect Keyboard Layout
-* Select Primary Network interface
+* Root Passwort: root
+* Full username for new user: user
+* Username for your account: user
+* User passwort: user
 
-* Hostname: dev-vm
-* Full name: user
-* Username: user
-* Passwort: user
+* Clock/time zone: Central
 
-* Encrypt home directory: No (Your preference)
-* Time zone: Europe/Berlin (Your preference)
-* Partition method: Guided - use the entire disk
-  - SCSI1 (0,0,0) (sda) - 80 GB ATA VBOX HARDDISK
+* Partition disks: Guided - use entire disk
+* Use: SCSI 3 (0,0,0) (sda) - 100.0 GB ATA VBOX HARDDISK
+* Partitioning: All files in one partition
+* Finish partitioning and write changes to disk
+* Write changes to disk: Yes
 
-* HTTP proxy: (empty)
-* No automatic updates
-* Software
-  - standard system utilities
-  - OpenSSH server
-* Install GRUB boot loader = Yes
-* Reboot
+* Scan another CD or DVD: No
+* Use a network mirror: Yes
+* Popularity-contest/Package use survey: No
+* Software Selection: SSH Server, standard system utilities
 
-### Installation for Ubuntu Server 18.04
-
-* Page 1 - Language:
-  - Language: English (or what you prefer)
-* Page 2 - Keyboard configuration:
-  - Your preference -> Identify keyboard
-  - Layout: English (US)
-  - Variant: English (US)
-* Page 3 - Ubuntu 18.04:
-  - Install Ubuntu
-* Page 4 - Network connections:
-  - Network configuration
-* Page 5 - Configure proxy:
-  - Proxy address: (empty)
-* Page 6 - Configure Ubuntu archive mirror:
-  - (bypass)
-* Page 7 - Filesystem setup:
-  - Use an Entire Disk
-  - VBOX_HARDDISK_...
-* Page 8 - Profile:
-  - Your name: user
-  - Your Server's name: dev-vm
-  - Username: user
-  - Passwort: user
-* Page 9 - Feature Server: (bypassed)
-* Page 10: (Installation running)
-* Page 11: (Reboot)
+* GRUB boot loader to master boot record: Yes
+* Device boot loader installation: /dev/sda (...)
+* Installation complete: Continue and reboot
 
 ## Procceed the installation
 
-Set password for root account with password: root
+* Login as root
 
-```Shell
-sudo passwd root
+Configure APT and comment "deb cdrom: ..." to "#deb cdrom: ..." out.
+
+```bash
+nano /etc/apt/sources.list
 ```
 
-### Ubuntu 16.04 Server: Configure network interfaces
+Install Git, clone repository, go into the directory and run installation.
+
+```Shell
+sudo apt -y install git
+git clone https://github.com/pluswerk/docker-vm.git
+cd docker-vm
+./create
+```
+
+Now you have created a new virtual machine.
+
+I recommend to export the virtual machine to a ova file. See following...
+
+## Virtualbox export
+
+* Expert mode
+* Virtualbox > File > Export Appliance
+  - Open Virtualization Format 2.0
+
+## Virtualbox import
+
+To import a OVA file and configure the virtual machine see file [usage.md](usage.md).
+
+### @todo Ubuntu 16.04 Server: Configure network interfaces
 
 ```Shell
 ip a
@@ -125,38 +125,3 @@ Restart network interfaces.
 ```Shell
 sudo ifdown -a && sudo ifup -a
 ```
-
-### Repository
-
-Install Git, clone repository and go into the directory.
-
-```Shell
-sudo apt -y install git
-git clone https://github.com/pluswerk/docker-vm.git /home/user/docker-vm
-```
-
-### Install
-
-Run installation.
-
-```Shell
-sudo ./create
-```
-
-Note:
-
-* Ubuntu 18.04: Configuring console-setup: UTF-8
-
-Now you have created a new virtual machine.
-
-I recommend to export the virtual machine to a ova file. See following...
-
-## Virtualbox export
-
-* Expert mode
-* Virtualbox > File > Export Appliance
-  - Open Virtualization Format 2.0
-
-## Virtualbox import
-
-To import a OVA file and configure the virtual machine see file [usage.md](usage.md).

@@ -72,7 +72,7 @@ installSystem() {
 
 	# Install minimal requirements
 	apt -y install openssh-server vim git sudo
-	apt -y install curl crudini htop putty-tools whois net-tools
+	apt -y install curl htop putty-tools whois net-tools
 
 	# Configure prefered editor
 	update-alternatives --set editor /usr/bin/vim.basic
@@ -156,42 +156,6 @@ installSamba() {
 	rsync -a ${SCRIPT_PATH}/etc/samba/smb.conf /etc/samba/
 	echo -e "user\nuser" | smbpasswd -s -a user
 	systemctl restart smbd
-	# configureSamba
-}
-
-configureSamba() {
-	# Not working, because samba configuration file ist defect
-	crudini --set /etc/samba/smb.conf 'global' 'security' 'user'
-	crudini --set /etc/samba/smb.conf 'global' 'allow insecure wide links' 'yes'
-	crudini --set /etc/samba/smb.conf 'global' 'workgroup' 'Company'
-
-	crudini --set /etc/samba/smb.conf 'projects' 'comment' 'projects path'
-	crudini --set /etc/samba/smb.conf 'projects' 'path' '/home/user/projects'
-	crudini --set /etc/samba/smb.conf 'projects' 'public' 'no'
-	crudini --set /etc/samba/smb.conf 'projects' 'writeable' 'yes'
-	crudini --set /etc/samba/smb.conf 'projects' 'guest ok' 'no'
-	crudini --set /etc/samba/smb.conf 'projects' 'browseable' 'yes'
-	crudini --set /etc/samba/smb.conf 'projects' 'valid users' 'user'
-	crudini --set /etc/samba/smb.conf 'projects' 'create mask' '0664'
-	crudini --set /etc/samba/smb.conf 'projects' 'directory mask' '0750'
-	crudini --set /etc/samba/smb.conf 'projects' 'follow symlinks' 'yes'
-	crudini --set /etc/samba/smb.conf 'projects' 'wide links' 'yes'
-	crudini --set /etc/samba/smb.conf 'projects' 'force user' 'user'
-	crudini --set /etc/samba/smb.conf 'projects' 'force group' 'user'
-
-	crudini --set /etc/samba/smb.conf 'user' 'comment' 'user path'
-	crudini --set /etc/samba/smb.conf 'user' 'path' '/home/user'
-	crudini --set /etc/samba/smb.conf 'user' 'public' 'no'
-	crudini --set /etc/samba/smb.conf 'user' 'writeable' 'yes'
-	crudini --set /etc/samba/smb.conf 'user' 'guest ok' 'no'
-	crudini --set /etc/samba/smb.conf 'user' 'browseable' 'yes'
-	crudini --set /etc/samba/smb.conf 'user' 'valid users' 'user'
-	crudini --set /etc/samba/smb.conf 'user' 'create mask' '0664'
-	crudini --set /etc/samba/smb.conf 'user' 'directory mask' '0750'
-	crudini --set /etc/samba/smb.conf 'user' 'follow symlinks' 'yes'
-	crudini --set /etc/samba/smb.conf 'user' 'wide links' 'yes'
-	crudini --set /etc/samba/smb.conf 'user' 'force user' 'user'
-	crudini --set /etc/samba/smb.conf 'user' 'force group' 'user'
 }
 
 rebootRequired() {
