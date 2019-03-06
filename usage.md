@@ -2,7 +2,7 @@
 
 Here is explained step by step how to import the VirtualBox OVA file and configure the virtual machine.
 
-## Import OVA file
+## @todo Import OVA file
 
 First import the VirtualBox OVA file.
 I recommend to switch on the expert mode, because my explanation builds on it.
@@ -87,40 +87,16 @@ Note: You can't connect your ssh with the user "root".
 
 ## Run configuration script
 
-```Shell
-sudo /home/user/docker-vm/usage
+* Login as root
+
+```bash
+cd docker-vm
+./usage
 ```
 
-### Minimal configuration
+* Run every step you need
 
-* Step 1: Configure system
-
-Follow the instructions in script.
-
-* Step 2: Create second harddisk
-
-The second hard disk is for your Projects and Docker data.
-This allows you to variably adjust the storage space and even move it to another hard drive in the host system.
-
-Partition and format the second hard disk in terminal or with gparted.
-
-Format the second hard disk by using the usage script "Create second harddisk".
-
-* Step 3: Configure Docker-Global
-
-### Optional configuration
-
-* Step 4: Message of the day
-
-* Step 5: Change keyboard layout
-
-* Step 6: Convert SSH key to Putty key
-
-* Step 7/8: Change login shell root/user
-
-Change permanently from "bash" to "zsh".
-
-## Configure Network
+## @todo Configure Network
 
 I recommend configuring the network because it can be different for everyone.
 
@@ -129,59 +105,15 @@ With the command "ip a" you can check your current network configuration.
 Check if the interfaces "en0s8" are assigned to the correct MAC addresses.
 If that's not the case, you'll need to adjust those values.
 
-```Shell
+```bash
 ip a
 ```
 
-### Optional Ubuntu 18.04 Server: Set static IP in network configuration
-
-Edit Netplan file.
-
-```Shell
-ls /etc/netplan
-sudo vim /etc/netplan/50-cloud-init.yaml
-```
-
-Change enp0s8 in 50-cloud-init.yaml.
-
-```yaml
-network:
-    version: 2
-    ethernets:
-        enp0s3:
-            addresses: []
-            dhcp4: true
-            optional: true
-            nameservers:
-                addresses: [127.0.1.1, 8.8.8.8]
-        enp0s8:
-            addresses: [192.168.178.50/24]
-            gateway4: 192.168.178.1
-            nameservers:
-                addresses: [127.0.1.1, 8.8.8.8]
-        enp0s9:
-            addresses: [192.168.56.101/24]
-            gateway4: 192.168.56.1
-            nameservers:
-                addresses: [127.0.1.1, 8.8.8.8]
-
-        # Maybe better for Host-only Adapter
-        enp0s9:
-            addresses: [192.168.56.101/24]
-            dhcp4: no
-```
-
-Restart network.
-
-```Shell
-sudo netplan generate && sudo netplan apply
-```
-
-### Optional Other Ubuntu: Set static IP in network configuration
+### @todo Optional Other Ubuntu: Set static IP in network configuration
 
 Get and configure interfaces.
 
-```Shell
+```bash
 sudo vim /etc/network/interfaces
 ```
 
@@ -219,22 +151,8 @@ iface enp0s9 inet static
 
 Reconnect network card, restart in case of doubt.
 
-```Shell
+```bash
 sudo ifdown -a && sudo ifup -a
-```
-
-### Message of the day - Keep me from working
-
-Yes, you wan't it! Your boss would kill you, but your soul thanks you.
-Each new Terminal you opening on desktop or with ssh, you get a new message.
-
-To activate/deactivate it use usage script "Message of the day".
-
-Show which fortunes are available and configure it at function "terminalMotd" in .shell-methods file:
-
-```Shell
-ls /usr/share/games/fortunes
-vim /home/user/.shell-methods
 ```
 
 ## Documentation
@@ -243,10 +161,10 @@ What can i do?
 
 ### Connect file browser to virtual machine
 
-The /home/user/projects can be accessed via Windows sharing or SSH.
+The /home/user/projects & /home/user can be accessed via Windows sharing or SSH.
 This will allow you to easily develop an IDE.
 
-#### SSHFS share - Linux configuration
+#### SSHFS share projects folder - Linux configuration
 
 Note: If you are running Linux, you don't wan't this virtual machine. ;-)
 
@@ -255,7 +173,7 @@ IP address must be adapted for the virtual machine.
 
 Run in a terminal window:
 
-```Shell
+```bash
 sudo apt -y install sshfs
 sudo mkdir -p /mnt/ssh/projects
 
@@ -264,7 +182,7 @@ vim ~/.bashrc && vim ~/.zshrc
 
 Append to file ~/.bashrc and ~/.zshrc:
 
-```Shell
+```bash
 alias vm-on='sshfs -o IdentitiesOnly=yes -o compression=no -o cache=yes -o kernel_cache -o allow_other -o IdentityFile=~/.ssh/id_rsa -o idmap=user -o uid=1000 -o gid=1000 user@192.168.56.101:/mnt/data/home/user/projects /mnt/ssh/projects'
 
 alias vm-off='fusermount -u /mnt/ssh/projects'
@@ -272,8 +190,16 @@ alias vm-off='fusermount -u /mnt/ssh/projects'
 
 Add 'user_allow_other' in file /etc/fuse.conf:
 
-```Shell
+```bash
 sudo vim /etc/fuse.conf
+```
+
+##### SSHFS share home folder - Linux configuration
+
+See above. Login as user.
+
+```bash
+smb://192.168.56.101/homes
 ```
 
 #### Samba/Windows share
@@ -286,8 +212,9 @@ IP address (192.168.56.101) must be adapted for the virtual machine.
 
 Run in a command window:
 
-```Shell
+```bash
 net use Z: \\192.168.56.101\projects /PERSISTENT:YES
+net use Y: \\192.168.56.101\homes /PERSISTENT:NO
 ```
 
 ###### Bugfix Windows insecure guest access
@@ -306,7 +233,7 @@ Computer configuration\administrative templates\network\Lanman Workstation
 
 Run in a terminal window:
 
-```Shell
+```bash
 sudo apt -y install cifs-utils
 sudo mkdir -p /mnt/samba/projects
 sudo chmod 777 /mnt/samba/projects
@@ -327,7 +254,7 @@ IP address (192.168.56.101) must be adapted for the virtual machine.
 
 #### DNS Server - Linux Ubuntu Desktop
 
-```Shell
+```bash
 sudo apt -y install resolvconf
 sudo vim /etc/NetworkManager/NetworkManager.conf
 ```
@@ -341,7 +268,7 @@ dns=dnsmasq
 
 Run these commands in the shell:
 
-```Shell
+```bash
 sudo sh -c 'echo "nameserver 127.0.1.1" >> /etc/resolvconf/resolv.conf.d/head'
 sudo sh -c 'echo "nameserver 8.8.8.8" >> /etc/resolvconf/resolv.conf.d/head'
 sudo sh -c 'echo "address=/.vm/192.168.56.101" >> /etc/NetworkManager/dnsmasq.d/development'

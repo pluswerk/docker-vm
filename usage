@@ -69,9 +69,9 @@ changeDevelopmentContext() {
 }
 
 convertSshKeyToPutty() {
-	puttygen /home/user/.ssh/id_rsa -o /home/user/projects/id_rsa.ppk
-	chown user:user /home/user/projects/id_rsa.ppk
-	echo 'Putty SSH key stored here: /home/user/projects/id_rsa.ppk';
+	puttygen /home/user/.ssh/id_rsa -o /home/user/.ssh/id_rsa.ppk
+	chown user:user /home/user/.ssh/id_rsa.ppk
+	echo 'Putty SSH key stored here: /home/user/.ssh/id_rsa.ppk';
 	pauseAnyKey
 }
 
@@ -92,51 +92,6 @@ configureGit() {
 	fi
 }
 
-createSecondHarddisk() {
-	sed -e 's/\s*\([\+0-9a-zA-Z]*\).*/\1/' << EOF | fdisk /dev/sdb ${TGTDEV}
-  g # create a new empty GPT partition table
-  n # new partition
-  1 # partition number 1
-    # first sector (default)
-    # last sector (default)
-  p # print the partition table
-  w # write table to disk and exit
-EOF
-
-	mkfs.ext4 /dev/sdb1
-	mkdir /mnt/data
-
-	UUID=`blkid -s UUID -o value /dev/sdb1`
-	if [[ $(lsb_release -rs) == '18.04' ]]; then
-		echoCommand="UUID=${UUID} /mnt/data ext4 defaults 0 0"
-	fi;
-	if [[ $(lsb_release -rs) == '16.04' ]]; then
-		echoCommand="UUID=${UUID} /mnt/data ext4 errors=remount-ro 0 1"
-	fi;
-	echo ${echoCommand} >> /etc/fstab
-
-	mount /mnt/data
-	chmod 777 /mnt/data
-}
-
-moveHarddisk2Projects() {
-	mkdir -p /mnt/data/home/user
-	chown user:user /mnt/data/home/user
-	chmod 775 /mnt/data/home/user
-	chmod g+s /mnt/data/home/user
-
-	mv /home/user/projects /mnt/data/home/user/
-	ln -s /mnt/data/home/user/projects /home/user/projects
-}
-
-moveHarddisk2Docker() {
-	systemctl stop docker
-	mkdir -p /mnt/data/var/lib
-	mv /var/lib/docker /mnt/data/var/lib/
-	ln -s /mnt/data/var/lib/docker /var/lib/docker
-	systemctl start docker
-}
-
 configureDockerGlobal() {
 	git clone https://github.com/pluswerk/docker-global.git /home/user/projects/docker-global
 	cd /home/user/projects/docker-global && docker-compose up -d && cd ${SCRIPT}
@@ -144,36 +99,41 @@ configureDockerGlobal() {
 
 menu() {
 	echo ''
-	echo '1) Configure system'
-	echo '2) Create second harddisk'
-	echo '3) Configure Docker-Global'
-	echo '5) Change keyboard layout'
-	echo '6) Convert SSH key to Putty key'
+	echo '1) Change hostname'
+	echo '3) Generate SSH key'
+	echo '3) Convert SSH key to Putty key'
+	echo '4) Configure Git'
+	echo '5) Change development context'
+	echo '6) Install docker-global'
+	echo '7) Change keyboard layout'
+	echo '8) Reboot'
 	echo '0) Exit'
 	read -p 'Enter your choice: ' choice
 
 	case "$choice" in
 		'1')
 			changeHostname
-			generateSshKey
-			convertSshKeyToPutty
-			configureGit
-			changeDevelopmentContext
-			rebootRequired
 		;;
 		'2')
-			createSecondHarddisk
-			moveHarddisk2Projects
-			moveHarddisk2Docker
+			generateSshKey
 		;;
 		'3')
-			configureDockerGlobal
+			convertSshKeyToPutty
+		;;
+		'4')
+			configureGit
 		;;
 		'5')
-			dpkg-reconfigure keyboard-configuration
+			changeDevelopmentContext
 		;;
 		'6')
-			convertSshKeyToPutty
+			configureDockerGlobal
+		;;
+		'7')
+			dpkg-reconfigure keyboard-configuration
+		;;
+		'8')
+			rebootRequired
 		;;
 
 		'0')
